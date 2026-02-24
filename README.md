@@ -2,6 +2,12 @@
 
 Jobly is a full‑stack, multi‑tenant job platform inspired by Indeed. It combines a **consumer‑grade job search experience** for candidates with **isolated, organization‑scoped workspaces** for employers. Built on **Next.js 16 App Router**, **Convex**, **Clerk**, and **Tailwind CSS v4**, Jobly delivers real‑time, reactive UX with modern SaaS patterns out of the box.
 
+<img width="1883" height="908" alt="image" src="https://github.com/user-attachments/assets/4d453855-8dea-4bc7-ba48-3320d4f5c720" />
+<img width="1382" height="921" alt="image" src="https://github.com/user-attachments/assets/fa98ccf9-6e93-4dd4-8b73-468e178b4fba" />
+<img width="1382" height="921" alt="image" src="https://github.com/user-attachments/assets/fa98ccf9-6e93-4dd4-8b73-468e178b4fba" />
+
+
+
 ## Features
 
 - **Modern job search (B2C)**
