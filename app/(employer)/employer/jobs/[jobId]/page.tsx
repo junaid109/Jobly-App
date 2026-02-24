@@ -1,13 +1,29 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { useOrganization } from "@clerk/nextjs";
 
 export default function EmployerJobDetailPage() {
   const params = useParams<{ jobId: string }>();
-  const jobId = params.jobId as string;
-  const data = useQuery(api.orgs.getOrgJobWithApplicants, jobId ? { jobId } : "skip");
+  const jobId = params.jobId as Id<"jobs">;
+  const { organization } = useOrganization();
+  const clerkOrgId = organization?.id;
+  const updateApplicationStatus = useMutation(api.orgs.updateApplicationStatus);
+  const data = useQuery(
+    api.orgs.getOrgJobWithApplicants,
+    jobId && clerkOrgId ? { jobId, clerkOrgId } : "skip",
+  );
+
+  if (!clerkOrgId) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-slate-500">Select an organization to view this role.</p>
+      </main>
+    );
+  }
 
   if (data === undefined) {
     return (
@@ -62,9 +78,25 @@ export default function EmployerJobDetailPage() {
                     >
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <span className="font-medium">Candidate</span>
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300">
-                          {statusLabel(app.status)}
-                        </span>
+                        <select
+                          className="rounded-md border border-slate-300 dark:border-slate-600 bg-background px-2 py-0.5 text-[10px] text-slate-600 dark:text-slate-300"
+                          value={app.status}
+                          onChange={(e) => {
+                            if (!clerkOrgId) return;
+                            void updateApplicationStatus({
+                              clerkOrgId,
+                              jobId,
+                              applicationId: app._id,
+                              status: e.target.value as ApplicationStatus,
+                            });
+                          }}
+                        >
+                          <option value="applied">Applied</option>
+                          <option value="in_review">In review</option>
+                          <option value="interview">Interviewing</option>
+                          <option value="offer">Offer</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
                       </div>
                       {app.resumeText && (
                         <p className="text-slate-600 dark:text-slate-300 line-clamp-2">
@@ -102,20 +134,4 @@ function readableType(type: string) {
   }
 }
 
-function statusLabel(status: string) {
-  switch (status) {
-    case "applied":
-      return "Applied";
-    case "in_review":
-      return "In review";
-    case "interview":
-      return "Interviewing";
-    case "offer":
-      return "Offer";
-    case "rejected":
-      return "Rejected";
-    default:
-      return status;
-  }
-}
-
+type ApplicationStatus = "applied" | "in_review" | "interview" | "offer" | "rejected";
