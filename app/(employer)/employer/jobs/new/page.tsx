@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useOrganization, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function NewJobPage() {
   const { organization } = useOrganization();
+  const bootstrapOrganizationAccess = useMutation(api.orgs.bootstrapOrganizationAccess);
+  const repairMyOrgRole = useMutation(api.orgs.repairMyOrgRole);
   const createJob = useMutation(api.orgs.createJob);
   const router = useRouter();
+  const [bootstrapRole, setBootstrapRole] = useState<"admin" | "recruiter" | "viewer" | null>(null);
+  const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
+  const [bootstrapDone, setBootstrapDone] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -17,10 +24,43 @@ export default function NewJobPage() {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const clerkOrgId = organization?.id;
+    setBootstrapAttempted(false);
+    setBootstrapDone(false);
+    setBootstrapError(null);
+    setBootstrapRole(null);
+    setSubmitError(null);
+    if (!clerkOrgId) return;
+  }, [organization?.id]);
+
+  useEffect(() => {
+    if (!organization || bootstrapAttempted) return;
+    setBootstrapAttempted(true);
+    void bootstrapOrganizationAccess({
+      clerkOrgId: organization.id,
+      name: organization.name,
+    })
+      .then(async (result) => {
+        const repaired = await repairMyOrgRole({ clerkOrgId: organization.id });
+        setBootstrapRole(repaired.newRole);
+        if (!repaired.repaired) {
+          setBootstrapRole(result.role);
+        }
+        setBootstrapDone(true);
+        setBootstrapError(null);
+      })
+      .catch((error: unknown) => {
+        setBootstrapError(error instanceof Error ? error.message : "Failed to sync organization.");
+      });
+  }, [bootstrapAttempted, bootstrapOrganizationAccess, organization, repairMyOrgRole]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organization || submitting) return;
+    if (!organization || submitting || !bootstrapDone || bootstrapRole === "viewer") return;
+    setSubmitError(null);
     setSubmitting(true);
     try {
       const jobId = await createJob({
@@ -37,6 +77,15 @@ export default function NewJobPage() {
         salaryMax: undefined,
       });
       router.push(`/employer/jobs/${jobId}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to publish job.";
+      if (message.includes("Forbidden")) {
+        setSubmitError(
+          "You do not have permission to post jobs in this organization. Switch organizations or ask an admin to grant recruiter/admin access.",
+        );
+      } else {
+        setSubmitError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -71,6 +120,21 @@ export default function NewJobPage() {
           {!organization ? (
             <p className="text-sm text-slate-500">
               Choose an organization via the Clerk organization switcher to post on its behalf.
+            </p>
+          ) : bootstrapError ? (
+            <p className="text-sm text-amber-700">
+              Workspace initialization failed ({bootstrapError}).{" "}
+              <Link href="/onboarding" className="underline hover:no-underline">
+                Re-run onboarding sync
+              </Link>
+              .
+            </p>
+          ) : !bootstrapDone ? (
+            <p className="text-sm text-slate-500">Initializing organization workspace…</p>
+          ) : bootstrapRole === "viewer" ? (
+            <p className="text-sm text-amber-700">
+              You have viewer access for this organization. Ask an admin to grant recruiter/admin
+              access before posting jobs.
             </p>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-card p-4 md:p-5">
@@ -142,6 +206,10 @@ export default function NewJobPage() {
                   placeholder="e.g. product, design, senior"
                 />
               </label>
+
+              {submitError && (
+                <p className="text-sm text-rose-600 dark:text-rose-400">{submitError}</p>
+              )}
 
               <div className="flex justify-end">
                 <button

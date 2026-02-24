@@ -1,17 +1,52 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useOrganization, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
 
 export default function EmployerJobsPage() {
   const { organization } = useOrganization();
   const clerkOrgId = organization?.id;
+  const bootstrapOrganizationAccess = useMutation(api.orgs.bootstrapOrganizationAccess);
+  const repairMyOrgRole = useMutation(api.orgs.repairMyOrgRole);
+  const [bootstrapRole, setBootstrapRole] = useState<"admin" | "recruiter" | "viewer" | null>(null);
+  const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
+  const [bootstrapDone, setBootstrapDone] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBootstrapAttempted(false);
+    setBootstrapDone(false);
+    setBootstrapError(null);
+    setBootstrapRole(null);
+  }, [clerkOrgId]);
+
+  useEffect(() => {
+    if (!organization || bootstrapAttempted) return;
+    setBootstrapAttempted(true);
+    void bootstrapOrganizationAccess({
+      clerkOrgId: organization.id,
+      name: organization.name,
+    })
+      .then(async (result) => {
+        const repaired = await repairMyOrgRole({ clerkOrgId: organization.id });
+        setBootstrapRole(repaired.newRole);
+        if (!repaired.repaired) {
+          setBootstrapRole(result.role);
+        }
+        setBootstrapDone(true);
+        setBootstrapError(null);
+      })
+      .catch((error: unknown) => {
+        setBootstrapError(error instanceof Error ? error.message : "Failed to sync organization.");
+      });
+  }, [bootstrapAttempted, bootstrapOrganizationAccess, organization, repairMyOrgRole]);
 
   const jobs = useQuery(
     api.orgs.listOrgJobs,
-    clerkOrgId ? { clerkOrgId } : "skip",
+    clerkOrgId && bootstrapDone ? { clerkOrgId } : "skip",
   );
 
   return (
@@ -51,6 +86,21 @@ export default function EmployerJobsPage() {
           {!organization ? (
             <p className="text-sm text-slate-500">
               Choose an organization via the Clerk organization switcher to see its roles.
+            </p>
+          ) : bootstrapError ? (
+            <p className="text-sm text-amber-700">
+              Workspace initialization failed ({bootstrapError}).{" "}
+              <Link href="/onboarding" className="underline hover:no-underline">
+                Re-run onboarding sync
+              </Link>
+              .
+            </p>
+          ) : !bootstrapDone ? (
+            <p className="text-sm text-slate-500">Initializing organization workspace…</p>
+          ) : bootstrapRole === "viewer" ? (
+            <p className="text-sm text-amber-700">
+              You currently have viewer access. You can view postings, but only recruiter/admin can
+              create new roles.
             </p>
           ) : jobs === undefined ? (
             <p className="text-sm text-slate-500">Loading jobs…</p>
