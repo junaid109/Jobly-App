@@ -2,16 +2,24 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Legacy demo table (can be removed when no longer needed)
-  numbers: defineTable({
-    value: v.number(),
-  }),
-
   // B2B employer organizations, mirrored from Clerk Organizations
   organizations: defineTable({
     clerkOrgId: v.string(),
     name: v.string(),
     createdAt: v.number(),
+    planTier: v.optional(
+      v.union(v.literal("free"), v.literal("pro"), v.literal("enterprise")),
+    ),
+    billingStatus: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("trialing"),
+        v.literal("past_due"),
+        v.literal("canceled"),
+        v.literal("inactive"),
+      ),
+    ),
+    trialEndsAt: v.optional(v.number()),
   }).index("by_clerkOrgId", ["clerkOrgId"]),
 
   // Organization members and roles
@@ -83,4 +91,3 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_seeker", ["seekerUserId"]),
 });
-
