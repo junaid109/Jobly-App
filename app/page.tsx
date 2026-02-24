@@ -8,16 +8,36 @@ import {
 } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Link from "next/link";
-import { SignUpButton } from "@clerk/nextjs";
-import { SignInButton } from "@clerk/nextjs";
-import { UserButton } from "@clerk/nextjs";
+import {
+  SignUpButton,
+  SignInButton,
+  UserButton,
+  SignedIn,
+  SignedOut,
+} from "@clerk/nextjs";
 
 export default function Home() {
   return (
     <>
       <header className="sticky top-0 z-10 bg-background p-4 border-b-2 border-slate-200 dark:border-slate-800 flex flex-row justify-between items-center">
-        Convex + Next.js + Clerk
-        <UserButton />
+        <span>Convex + Next.js + Clerk</span>
+        <div className="flex items-center gap-2">
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="bg-foreground text-background px-3 py-1 rounded-md text-sm">
+                Sign in
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="border border-foreground text-foreground px-3 py-1 rounded-md text-sm">
+                Sign up
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </div>
       </header>
       <main className="p-8 flex flex-col gap-8">
         <h1 className="text-4xl font-bold text-center">
