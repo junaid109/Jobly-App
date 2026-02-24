@@ -11,17 +11,32 @@ const ROLE_PRIORITY: Record<OrgRole, number> = {
   admin: 3,
 };
 
-function toOrgRole(value: string | null | undefined): OrgRole {
-  if (!value) return "viewer";
-  if (value.includes("admin")) return "admin";
-  if (value.includes("recruiter")) return "recruiter";
-  return "viewer";
+function parseOrgRoleClaim(value: string | null | undefined): OrgRole | null {
+  if (!value) return null;
+  const normalized = value.toLowerCase();
+  if (normalized.includes("admin")) return "admin";
+  if (normalized.includes("recruiter")) return "recruiter";
+  if (normalized.includes("member")) return "recruiter";
+  if (normalized.includes("viewer")) return "viewer";
+  return null;
 }
 
 function getIdentityClaim(identity: Awaited<ReturnType<QueryCtx["auth"]["getUserIdentity"]>>, key: string): string | undefined {
   const record = identity as unknown as Record<string, unknown>;
   const value = record[key];
   return typeof value === "string" ? value : undefined;
+}
+
+function resolveRoleFromIdentity(
+  identity: Awaited<ReturnType<QueryCtx["auth"]["getUserIdentity"]>>,
+): OrgRole | null {
+  const orgRoleClaim =
+    getIdentityClaim(identity, "org_role") ?? getIdentityClaim(identity, "organization_role");
+  return parseOrgRoleClaim(orgRoleClaim);
+}
+
+function resolveOrgIdFromIdentity(identity: Awaited<ReturnType<QueryCtx["auth"]["getUserIdentity"]>>) {
+  return getIdentityClaim(identity, "org_id") ?? getIdentityClaim(identity, "organization_id");
 }
 
 async function resolveOrganizationByClerkId(ctx: QueryCtx | MutationCtx, clerkOrgId: string) {
@@ -57,16 +72,13 @@ async function requireOrgAccess(
   if (membership) {
     role = membership.role;
   } else {
-    const orgIdClaim =
-      getIdentityClaim(identity, "org_id") ?? getIdentityClaim(identity, "organization_id");
-    const orgRoleClaim =
-      getIdentityClaim(identity, "org_role") ?? getIdentityClaim(identity, "organization_role");
-
-    if (orgIdClaim !== clerkOrgId || !orgRoleClaim) {
+    const orgIdClaim = resolveOrgIdFromIdentity(identity);
+    const parsedRole = resolveRoleFromIdentity(identity);
+    if (orgIdClaim !== clerkOrgId || !parsedRole) {
       throw new Error("Forbidden");
     }
 
-    role = toOrgRole(orgRoleClaim);
+    role = parsedRole;
   }
 
   if (ROLE_PRIORITY[role] < ROLE_PRIORITY[minimumRole]) {
@@ -135,6 +147,112 @@ export const upsertOrgMember = mutation({
     });
 
     return { organizationId: orgId, role: args.role };
+  },
+});
+
+export const bootstrapOrganizationAccess = mutation({
+  args: {
+    clerkOrgId: v.string(),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const orgIdClaim = resolveOrgIdFromIdentity(identity);
+    if (orgIdClaim && orgIdClaim !== args.clerkOrgId) {
+      throw new Error("Forbidden");
+    }
+
+    const existingOrg = await resolveOrganizationByClerkId(ctx, args.clerkOrgId);
+    const orgId: Id<"organizations"> = existingOrg
+      ? existingOrg._id
+      : await ctx.db.insert("organizations", {
+          clerkOrgId: args.clerkOrgId,
+          name: args.name,
+          createdAt: Date.now(),
+          planTier: "free",
+          billingStatus: "inactive",
+        });
+
+    const clerkUserId = identity.subject;
+    const claimRole = resolveRoleFromIdentity(identity);
+
+    const existing = await ctx.db
+      .query("orgMembers")
+      .withIndex("by_user", (q) => q.eq("clerkUserId", clerkUserId))
+      .filter((q) => q.eq(q.field("organizationId"), orgId))
+      .unique();
+
+    let role: OrgRole;
+    if (existing) {
+      role = existing.role;
+      if (claimRole && claimRole !== existing.role) {
+        await ctx.db.patch(existing._id, { role: claimRole });
+        role = claimRole;
+      }
+    } else {
+      if (claimRole) {
+        role = claimRole;
+      } else if (orgIdClaim === args.clerkOrgId) {
+        // Conservative bootstrap: only elevate in active org context.
+        role = "recruiter";
+      } else {
+        throw new Error("Forbidden");
+      }
+
+      await ctx.db.insert("orgMembers", {
+        organizationId: orgId,
+        clerkUserId,
+        role,
+        createdAt: Date.now(),
+      });
+    }
+
+    return { organizationId: orgId, role };
+  },
+});
+
+export const repairMyOrgRole = mutation({
+  args: {
+    clerkOrgId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const organization = await resolveOrganizationByClerkId(ctx, args.clerkOrgId);
+    if (!organization) {
+      throw new Error("Organization not found");
+    }
+
+    const orgIdClaim = resolveOrgIdFromIdentity(identity);
+    if (orgIdClaim && orgIdClaim !== args.clerkOrgId) {
+      throw new Error("Forbidden");
+    }
+
+    const membership = await ctx.db
+      .query("orgMembers")
+      .withIndex("by_user", (q) => q.eq("clerkUserId", identity.subject))
+      .filter((q) => q.eq(q.field("organizationId"), organization._id))
+      .unique();
+
+    if (!membership) {
+      throw new Error("Forbidden");
+    }
+
+    const oldRole = membership.role;
+    const claimedRole = resolveRoleFromIdentity(identity);
+    if (!claimedRole || ROLE_PRIORITY[claimedRole] <= ROLE_PRIORITY[oldRole]) {
+      return { oldRole, newRole: oldRole, repaired: false };
+    }
+
+    await ctx.db.patch(membership._id, { role: claimedRole });
+    return { oldRole, newRole: claimedRole, repaired: true };
   },
 });
 

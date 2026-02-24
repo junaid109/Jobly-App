@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CreateOrganization,
   SignedIn,
   SignedOut,
   SignInButton,
-  useAuth,
   useOrganization,
-  useUser,
 } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -16,38 +14,23 @@ import { useRouter } from "next/navigation";
 
 type RoleChoice = "job_seeker" | "employer";
 
-type OrgRole = "admin" | "recruiter" | "viewer";
-
-function mapClerkRole(role: string | null | undefined): OrgRole {
-  if (!role) return "viewer";
-  if (role.includes("admin")) return "admin";
-  if (role.includes("recruiter")) return "recruiter";
-  return "viewer";
-}
-
 export default function OnboardingPage() {
   const router = useRouter();
   const { organization } = useOrganization();
-  const { orgRole } = useAuth();
-  const { user } = useUser();
-  const upsertOrgMember = useMutation(api.orgs.upsertOrgMember);
+  const bootstrapOrganizationAccess = useMutation(api.orgs.bootstrapOrganizationAccess);
 
   const [choice, setChoice] = useState<RoleChoice | null>(null);
   const [syncing, setSyncing] = useState(false);
 
-  const normalizedRole = useMemo(() => mapClerkRole(orgRole), [orgRole]);
-
   useEffect(() => {
-    if (choice !== "employer" || !organization || !user || syncing) {
+    if (choice !== "employer" || !organization || syncing) {
       return;
     }
 
     setSyncing(true);
-    void upsertOrgMember({
+    void bootstrapOrganizationAccess({
       clerkOrgId: organization.id,
       name: organization.name,
-      clerkUserId: user.id,
-      role: normalizedRole,
     })
       .then(() => {
         router.replace("/employer/dashboard");
@@ -55,7 +38,7 @@ export default function OnboardingPage() {
       .finally(() => {
         setSyncing(false);
       });
-  }, [choice, normalizedRole, organization, router, syncing, upsertOrgMember, user]);
+  }, [bootstrapOrganizationAccess, choice, organization, router, syncing]);
 
   return (
     <main className="min-h-screen bg-background text-foreground px-6 py-10 md:px-12">
