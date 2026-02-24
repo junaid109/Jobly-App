@@ -5,10 +5,11 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useState } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export default function JobDetailPage() {
   const params = useParams<{ jobId: string }>();
-  const jobId = params.jobId as string;
+  const jobId = params.jobId as Id<"jobs">;
   const job = useQuery(api.jobs.getJob, jobId ? { jobId } : "skip");
   const { user } = useUser();
   const applyToJob = useMutation(api.jobs.applyToJob);
@@ -153,4 +154,3 @@ function readableType(type: string) {
       return type;
   }
 }
-
