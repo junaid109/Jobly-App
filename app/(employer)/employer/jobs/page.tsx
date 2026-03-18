@@ -1,52 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useOrganization, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Link from "next/link";
+import { useOrganizationBootstrap } from "@/components/useOrganizationBootstrap";
 
 export default function EmployerJobsPage() {
   const { organization } = useOrganization();
-  const clerkOrgId = organization?.id;
-  const bootstrapOrganizationAccess = useMutation(api.orgs.bootstrapOrganizationAccess);
-  const repairMyOrgRole = useMutation(api.orgs.repairMyOrgRole);
-  const [bootstrapRole, setBootstrapRole] = useState<"admin" | "recruiter" | "viewer" | null>(null);
-  const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
-  const [bootstrapDone, setBootstrapDone] = useState(false);
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setBootstrapAttempted(false);
-    setBootstrapDone(false);
-    setBootstrapError(null);
-    setBootstrapRole(null);
-  }, [clerkOrgId]);
-
-  useEffect(() => {
-    if (!organization || bootstrapAttempted) return;
-    setBootstrapAttempted(true);
-    void bootstrapOrganizationAccess({
-      clerkOrgId: organization.id,
-      name: organization.name,
-    })
-      .then(async (result) => {
-        const repaired = await repairMyOrgRole({ clerkOrgId: organization.id });
-        setBootstrapRole(repaired.newRole);
-        if (!repaired.repaired) {
-          setBootstrapRole(result.role);
-        }
-        setBootstrapDone(true);
-        setBootstrapError(null);
-      })
-      .catch((error: unknown) => {
-        setBootstrapError(error instanceof Error ? error.message : "Failed to sync organization.");
-      });
-  }, [bootstrapAttempted, bootstrapOrganizationAccess, organization, repairMyOrgRole]);
+  const bootstrap = useOrganizationBootstrap(organization);
 
   const jobs = useQuery(
     api.orgs.listOrgJobs,
-    clerkOrgId && bootstrapDone ? { clerkOrgId } : "skip",
+    bootstrap.clerkOrgId && bootstrap.ready ? { clerkOrgId: bootstrap.clerkOrgId } : "skip",
   );
 
   return (
@@ -87,21 +53,16 @@ export default function EmployerJobsPage() {
             <p className="text-sm text-slate-500">
               Choose an organization via the Clerk organization switcher to see its roles.
             </p>
-          ) : bootstrapError ? (
+          ) : bootstrap.status === "error" ? (
             <p className="text-sm text-amber-700">
-              Workspace initialization failed ({bootstrapError}).{" "}
+              Workspace initialization failed ({bootstrap.error}).{" "}
               <Link href="/onboarding" className="underline hover:no-underline">
                 Re-run onboarding sync
               </Link>
               .
             </p>
-          ) : !bootstrapDone ? (
+          ) : bootstrap.status === "loading" ? (
             <p className="text-sm text-slate-500">Initializing organization workspace…</p>
-          ) : bootstrapRole === "viewer" ? (
-            <p className="text-sm text-amber-700">
-              You currently have viewer access. You can view postings, but only recruiter/admin can
-              create new roles.
-            </p>
           ) : jobs === undefined ? (
             <p className="text-sm text-slate-500">Loading jobs…</p>
           ) : jobs.length === 0 ? (
@@ -113,28 +74,37 @@ export default function EmployerJobsPage() {
               .
             </p>
           ) : (
-            <div className="space-y-3">
-              {jobs.map((job) => (
-                <Link
-                  key={job._id}
-                  href={`/employer/jobs/${job._id}`}
-                  className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-card hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 mb-1">Role</p>
-                      <p className="text-sm font-semibold">{job.title}</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-400">
-                        {job.location}
-                      </p>
+            <>
+              {bootstrap.role === "viewer" ? (
+                <p className="text-sm text-amber-700">
+                  You currently have viewer access. You can view postings, but only recruiter/admin
+                  can create new roles.
+                </p>
+              ) : null}
+
+              <div className="space-y-3">
+                {jobs.map((job) => (
+                  <Link
+                    key={job._id}
+                    href={`/employer/jobs/${job._id}`}
+                    className="block rounded-xl border border-slate-200 dark:border-slate-800 bg-card hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 mb-1">Role</p>
+                        <p className="text-sm font-semibold">{job.title}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          {job.location}
+                        </p>
+                      </div>
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                        {job.published ? "Published" : "Unpublished"}
+                      </span>
                     </div>
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                      {job.published ? "Published" : "Draft"}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            </>
           )}
         </SignedIn>
       </div>

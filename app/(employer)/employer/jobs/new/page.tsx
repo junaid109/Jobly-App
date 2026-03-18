@@ -1,65 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOrganization, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useOrganizationBootstrap } from "@/components/useOrganizationBootstrap";
+
+type JobType =
+  | "full_time"
+  | "part_time"
+  | "contract"
+  | "internship"
+  | "remote"
+  | "hybrid";
 
 export default function NewJobPage() {
   const { organization } = useOrganization();
-  const bootstrapOrganizationAccess = useMutation(api.orgs.bootstrapOrganizationAccess);
-  const repairMyOrgRole = useMutation(api.orgs.repairMyOrgRole);
+  const bootstrap = useOrganizationBootstrap(organization);
   const createJob = useMutation(api.orgs.createJob);
   const router = useRouter();
-  const [bootstrapRole, setBootstrapRole] = useState<"admin" | "recruiter" | "viewer" | null>(null);
-  const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
-  const [bootstrapDone, setBootstrapDone] = useState(false);
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
-  const [type, setType] = useState<"full_time" | "part_time" | "contract" | "internship" | "remote" | "hybrid">("full_time");
+  const [type, setType] = useState<JobType>("full_time");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
+  const [salaryMin, setSalaryMin] = useState("");
+  const [salaryMax, setSalaryMax] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const clerkOrgId = organization?.id;
-    setBootstrapAttempted(false);
-    setBootstrapDone(false);
-    setBootstrapError(null);
-    setBootstrapRole(null);
-    setSubmitError(null);
-    if (!clerkOrgId) return;
-  }, [organization?.id]);
-
-  useEffect(() => {
-    if (!organization || bootstrapAttempted) return;
-    setBootstrapAttempted(true);
-    void bootstrapOrganizationAccess({
-      clerkOrgId: organization.id,
-      name: organization.name,
-    })
-      .then(async (result) => {
-        const repaired = await repairMyOrgRole({ clerkOrgId: organization.id });
-        setBootstrapRole(repaired.newRole);
-        if (!repaired.repaired) {
-          setBootstrapRole(result.role);
-        }
-        setBootstrapDone(true);
-        setBootstrapError(null);
-      })
-      .catch((error: unknown) => {
-        setBootstrapError(error instanceof Error ? error.message : "Failed to sync organization.");
-      });
-  }, [bootstrapAttempted, bootstrapOrganizationAccess, organization, repairMyOrgRole]);
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organization || submitting || !bootstrapDone || bootstrapRole === "viewer") return;
+    if (!organization || submitting || !bootstrap.ready || bootstrap.role === "viewer") return;
+
     setSubmitError(null);
     setSubmitting(true);
     try {
@@ -71,10 +47,10 @@ export default function NewJobPage() {
         description,
         tags: tags
           .split(",")
-          .map((t) => t.trim())
+          .map((tag) => tag.trim())
           .filter(Boolean),
-        salaryMin: undefined,
-        salaryMax: undefined,
+        salaryMin: salaryMin ? Number(salaryMin) : undefined,
+        salaryMax: salaryMax ? Number(salaryMax) : undefined,
       });
       router.push(`/employer/jobs/${jobId}`);
     } catch (error: unknown) {
@@ -95,9 +71,7 @@ export default function NewJobPage() {
     <main className="min-h-screen bg-background text-foreground px-6 py-10 md:px-12">
       <div className="max-w-3xl mx-auto space-y-6">
         <header>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-            Post a new role
-          </h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Post a new role</h1>
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
             Create a job posting for your organization. You can refine the details later.
           </p>
@@ -121,23 +95,26 @@ export default function NewJobPage() {
             <p className="text-sm text-slate-500">
               Choose an organization via the Clerk organization switcher to post on its behalf.
             </p>
-          ) : bootstrapError ? (
+          ) : bootstrap.status === "error" ? (
             <p className="text-sm text-amber-700">
-              Workspace initialization failed ({bootstrapError}).{" "}
+              Workspace initialization failed ({bootstrap.error}).{" "}
               <Link href="/onboarding" className="underline hover:no-underline">
                 Re-run onboarding sync
               </Link>
               .
             </p>
-          ) : !bootstrapDone ? (
+          ) : bootstrap.status === "loading" ? (
             <p className="text-sm text-slate-500">Initializing organization workspace…</p>
-          ) : bootstrapRole === "viewer" ? (
+          ) : bootstrap.role === "viewer" ? (
             <p className="text-sm text-amber-700">
               You have viewer access for this organization. Ask an admin to grant recruiter/admin
               access before posting jobs.
             </p>
           ) : (
-            <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-card p-4 md:p-5">
+            <form
+              onSubmit={onSubmit}
+              className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-card p-4 md:p-5"
+            >
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -171,7 +148,7 @@ export default function NewJobPage() {
                 <select
                   className="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-background text-sm px-2 py-1.5"
                   value={type}
-                  onChange={(e) => setType(e.target.value as typeof type)}
+                  onChange={(e) => setType(e.target.value as JobType)}
                 >
                   <option value="full_time">Full-time</option>
                   <option value="part_time">Part-time</option>
@@ -207,9 +184,38 @@ export default function NewJobPage() {
                 />
               </label>
 
-              {submitError && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                    Salary min
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-background text-sm px-2 py-1.5"
+                    type="number"
+                    min="0"
+                    value={salaryMin}
+                    onChange={(e) => setSalaryMin(e.target.value)}
+                    placeholder="e.g. 60000"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                    Salary max
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-background text-sm px-2 py-1.5"
+                    type="number"
+                    min="0"
+                    value={salaryMax}
+                    onChange={(e) => setSalaryMax(e.target.value)}
+                    placeholder="e.g. 90000"
+                  />
+                </label>
+              </div>
+
+              {submitError ? (
                 <p className="text-sm text-rose-600 dark:text-rose-400">{submitError}</p>
-              )}
+              ) : null}
 
               <div className="flex justify-end">
                 <button
