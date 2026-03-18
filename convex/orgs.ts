@@ -268,19 +268,12 @@ export const getOrgDashboard = query({
       .withIndex("by_org", (q) => q.eq("organizationId", organization._id))
       .collect();
 
-    const applicationLists = await Promise.all(
-      jobs.map((job) =>
-        ctx.db
-          .query("applications")
-          .withIndex("by_job", (q) => q.eq("jobId", job._id))
-          .collect(),
-      ),
-    );
-
-    const totalApplicants = applicationLists.reduce(
-      (count, applications) => count + applications.length,
-      0,
-    );
+    let totalApplicants = 0;
+    for await (const _application of ctx.db
+      .query("applications")
+      .withIndex("by_org", (q) => q.eq("organizationId", organization._id))) {
+      totalApplicants += 1;
+    }
 
     return {
       organization,

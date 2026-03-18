@@ -62,6 +62,7 @@ export default defineSchema({
   // Candidate applications to jobs
   applications: defineTable({
     jobId: v.id("jobs"),
+    organizationId: v.optional(v.id("organizations")),
     seekerUserId: v.string(), // Clerk user id
     resumeUrl: v.optional(v.string()),
     resumeText: v.optional(v.string()),
@@ -76,6 +77,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_org", ["organizationId"])
     .index("by_job", ["jobId"])
     .index("by_job_and_seeker", ["jobId", "seekerUserId"])
     .index("by_seeker", ["seekerUserId"]),

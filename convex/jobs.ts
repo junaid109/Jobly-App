@@ -1,6 +1,28 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+const MAX_PUBLIC_JOB_RESULTS = 50;
+const MAX_PUBLIC_JOB_SCAN = 200;
+
+const publicJobResultValidator = v.object({
+  _id: v.id("jobs"),
+  title: v.string(),
+  location: v.string(),
+  type: v.union(
+    v.literal("full_time"),
+    v.literal("part_time"),
+    v.literal("contract"),
+    v.literal("internship"),
+    v.literal("remote"),
+    v.literal("hybrid"),
+  ),
+  tags: v.array(v.string()),
+  createdAt: v.number(),
+  salaryMin: v.optional(v.number()),
+  salaryMax: v.optional(v.number()),
+  organizationName: v.string(),
+});
+
 // Public job listing for seekers
 export const listPublicJobs = query({
   args: {
@@ -11,13 +33,8 @@ export const listPublicJobs = query({
     minSalary: v.optional(v.number()),
     sortBy: v.optional(v.union(v.literal("newest"), v.literal("salary"))),
   },
+  returns: v.array(publicJobResultValidator),
   handler: async (ctx, args) => {
-    const jobs = await ctx.db
-      .query("jobs")
-      .withIndex("by_published", (q) => q.eq("published", true))
-      .order("desc")
-      .collect();
-
     const organizations = await ctx.db
       .query("organizations")
       .collect();
@@ -27,23 +44,33 @@ export const listPublicJobs = query({
     const normalizedKeyword = args.keyword?.trim().toLowerCase();
     const normalizedLocation = args.location?.trim().toLowerCase();
     const requestedTypes = new Set(args.types ?? []);
+    const filteredJobs = [];
+    let scannedJobs = 0;
 
-    const filteredJobs = jobs.filter((job) => {
+    for await (const job of ctx.db
+      .query("jobs")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .order("desc")) {
+      scannedJobs += 1;
+      if (scannedJobs > MAX_PUBLIC_JOB_SCAN) {
+        break;
+      }
+
       if (normalizedKeyword) {
         const haystack = [job.title, job.description, job.tags.join(" ")]
           .join(" ")
           .toLowerCase();
         if (!haystack.includes(normalizedKeyword)) {
-          return false;
+          continue;
         }
       }
 
       if (normalizedLocation && !job.location.toLowerCase().includes(normalizedLocation)) {
-        return false;
+        continue;
       }
 
       if (requestedTypes.size > 0 && !requestedTypes.has(job.type)) {
-        return false;
+        continue;
       }
 
       if (
@@ -51,18 +78,22 @@ export const listPublicJobs = query({
         job.type !== "remote" &&
         !job.location.toLowerCase().includes("remote")
       ) {
-        return false;
+        continue;
       }
 
       if (args.minSalary !== undefined) {
         const comparableSalary = job.salaryMax ?? job.salaryMin;
         if (comparableSalary === undefined || comparableSalary < args.minSalary) {
-          return false;
+          continue;
         }
       }
 
-      return true;
-    });
+      filteredJobs.push(job);
+
+      if (args.sortBy !== "salary" && filteredJobs.length >= MAX_PUBLIC_JOB_RESULTS) {
+        break;
+      }
+    }
 
     const sortedJobs = filteredJobs.sort((a, b) => {
       if (args.sortBy === "salary") {
@@ -76,7 +107,7 @@ export const listPublicJobs = query({
       return b.createdAt - a.createdAt;
     });
 
-    return sortedJobs.slice(0, 50).map((job) => {
+    return sortedJobs.slice(0, MAX_PUBLIC_JOB_RESULTS).map((job) => {
       const org = orgById.get(job.organizationId);
       return {
         _id: job._id,
@@ -166,6 +197,7 @@ export const applyToJob = mutation({
     const now = Date.now();
     await ctx.db.insert("applications", {
       jobId: args.jobId,
+      organizationId: job.organizationId,
       seekerUserId: identity.subject,
       resumeUrl: undefined,
       resumeText: args.resumeText,
