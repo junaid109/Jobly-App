@@ -77,6 +77,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_job", ["jobId"])
+    .index("by_job_and_seeker", ["jobId", "seekerUserId"])
     .index("by_seeker", ["seekerUserId"]),
 
   // Candidate profiles for seekers

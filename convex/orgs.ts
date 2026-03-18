@@ -263,23 +263,31 @@ export const getOrgDashboard = query({
   handler: async (ctx, args) => {
     const { organization } = await requireOrgAccess(ctx, args.clerkOrgId, "viewer");
 
-    const [jobs, applications] = await Promise.all([
-      ctx.db
-        .query("jobs")
-        .withIndex("by_org", (q) => q.eq("organizationId", organization._id))
-        .collect(),
-      ctx.db.query("applications").collect(),
-    ]);
+    const jobs = await ctx.db
+      .query("jobs")
+      .withIndex("by_org", (q) => q.eq("organizationId", organization._id))
+      .collect();
 
-    const orgJobIds = new Set(jobs.map((j) => j._id));
-    const orgApplications = applications.filter((a) => orgJobIds.has(a.jobId));
+    const applicationLists = await Promise.all(
+      jobs.map((job) =>
+        ctx.db
+          .query("applications")
+          .withIndex("by_job", (q) => q.eq("jobId", job._id))
+          .collect(),
+      ),
+    );
+
+    const totalApplicants = applicationLists.reduce(
+      (count, applications) => count + applications.length,
+      0,
+    );
 
     return {
       organization,
       stats: {
         openJobs: jobs.filter((j) => j.published).length,
         totalJobs: jobs.length,
-        totalApplicants: orgApplications.length,
+        totalApplicants,
       },
     };
   },
@@ -345,6 +353,83 @@ export const createJob = mutation({
       published: true,
       createdAt: Date.now(),
     });
+  },
+});
+
+export const updateJob = mutation({
+  args: {
+    clerkOrgId: v.string(),
+    jobId: v.id("jobs"),
+    title: v.string(),
+    location: v.string(),
+    type: v.union(
+      v.literal("full_time"),
+      v.literal("part_time"),
+      v.literal("contract"),
+      v.literal("internship"),
+      v.literal("remote"),
+      v.literal("hybrid"),
+    ),
+    description: v.string(),
+    tags: v.array(v.string()),
+    salaryMin: v.optional(v.number()),
+    salaryMax: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { organization } = await requireOrgAccess(ctx, args.clerkOrgId, "recruiter");
+
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.organizationId !== organization._id) {
+      throw new Error("Forbidden");
+    }
+
+    await ctx.db.patch(args.jobId, {
+      title: args.title,
+      location: args.location,
+      type: args.type,
+      description: args.description,
+      tags: args.tags,
+      salaryMin: args.salaryMin,
+      salaryMax: args.salaryMax,
+    });
+
+    return { ok: true };
+  },
+});
+
+export const setJobPublished = mutation({
+  args: {
+    clerkOrgId: v.string(),
+    jobId: v.id("jobs"),
+    published: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const { organization } = await requireOrgAccess(ctx, args.clerkOrgId, "recruiter");
+
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.organizationId !== organization._id) {
+      throw new Error("Forbidden");
+    }
+
+    if (args.published && !job.published) {
+      const jobs = await ctx.db
+        .query("jobs")
+        .withIndex("by_org", (q) => q.eq("organizationId", organization._id))
+        .collect();
+
+      const activeJobCount = jobs.filter((currentJob) => currentJob.published).length;
+      const activeJobLimit = getActiveJobLimitForOrganization(organization);
+
+      if (activeJobCount >= activeJobLimit) {
+        throw new Error("Plan limit reached. Upgrade to post more active jobs.");
+      }
+    }
+
+    await ctx.db.patch(args.jobId, {
+      published: args.published,
+    });
+
+    return { ok: true };
   },
 });
 
