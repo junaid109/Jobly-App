@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #f8fafc;
+  --surface-strong: #f5efe1;
+  --accent: #f59e0b;
 }
 
 @theme inline {
@@ -22,5 +25,10 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, white);
+  color: var(--foreground);
 }

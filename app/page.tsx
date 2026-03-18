@@ -9,173 +9,253 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="flex items-center justify-between px-8 py-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-semibold tracking-tight">Jobly</span>
-          <span className="hidden sm:inline text-xs text-slate-500">
-            Modern hiring for teams &amp; talent
-          </span>
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f4efe4_0%,#f8fafc_22%,#ffffff_100%)] text-foreground flex flex-col">
+      <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-900 text-sm font-bold text-amber-300">
+              J
+            </span>
+            <div>
+              <p className="text-lg font-semibold tracking-tight text-stone-900">Jobly</p>
+              <p className="hidden text-xs text-stone-500 md:block">
+                Search-first hiring marketplace
+              </p>
+            </div>
+          </div>
+
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/jobs" className="text-stone-600 hover:text-stone-950 transition-colors">
+              Find jobs
+            </Link>
+            <Link
+              href="/employer/dashboard"
+              className="text-stone-600 hover:text-stone-950 transition-colors"
+            >
+              Employers
+            </Link>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 hover:bg-stone-50">
+                  Sign in
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800">
+                  Create account
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </nav>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/jobs" className="hover:text-primary transition-colors">
-            Find jobs
-          </Link>
-          <Link href="/employer/dashboard" className="hover:text-primary transition-colors">
-            For employers
-          </Link>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="px-3 py-1.5 rounded-md text-sm border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">
-                Sign in
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <button className="px-3 py-1.5 rounded-md text-sm bg-foreground text-background hover:opacity-90">
-                Get started
-              </button>
-            </SignUpButton>
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
-        </nav>
       </header>
 
       <main className="flex-1">
-        <section className="px-8 py-16 md:py-24 max-w-5xl mx-auto grid gap-12 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] items-center">
-          <div className="space-y-6">
-            <p className="inline-flex items-center text-xs font-medium rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-emerald-600 dark:text-emerald-400">
-              B2C job search · B2B hiring workspaces
-            </p>
-            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
-              The modern hiring OS{" "}
-              <span className="block text-emerald-500">for teams &amp; talent.</span>
-            </h1>
-            <p className="text-base md:text-lg text-slate-600 dark:text-slate-300 max-w-xl">
-              Jobly gives job seekers a beautiful, consumer-grade experience while employers hire in
-              fully isolated, real-time workspaces powered by Clerk Organizations and Convex.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/jobs">
-                <button className="px-5 py-2.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90">
-                  Browse open roles
-                </button>
-              </Link>
-              <Link href="/employer/dashboard">
-                <button className="px-5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">
-                  Post a job for free
-                </button>
-              </Link>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3 text-sm">
-              <div>
-                <p className="font-medium">Realtime by default</p>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Convex keeps job boards, pipelines, and activity feeds instantly in sync.
-                </p>
-              </div>
-              <div>
-                <p className="font-medium">Org-grade access</p>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Clerk Organizations power multi-member employer workspaces with roles and SSO-ready auth.
-                </p>
-              </div>
-              <div>
-                <p className="font-medium">Built for SaaS</p>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Next.js App Router, Tailwind v4, and Clerk Billing friendly architecture from day one.
-                </p>
-              </div>
-            </div>
-          </div>
+        <section className="px-5 pb-12 pt-10 md:px-8 md:pb-16 md:pt-14">
+          <div className="mx-auto grid max-w-7xl gap-8 xl:grid-cols-[minmax(0,1.2fr)_460px]">
+            <div className="rounded-[2.2rem] border border-stone-200/80 bg-[radial-gradient(circle_at_top_left,#fff4d6_0%,#f7f1e4_33%,#ffffff_100%)] p-6 shadow-[0_30px_80px_-40px_rgba(28,25,23,0.35)] md:p-10">
+              <p className="inline-flex rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-800">
+                Indeed-style roadmap in motion
+              </p>
+              <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight text-stone-950 md:text-6xl">
+                Search better jobs, faster, with a marketplace built for modern hiring.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 md:text-lg">
+                Jobly is evolving from a solid MVP into a search-first hiring product: cleaner job
+                discovery for candidates, better hiring workflows for teams, and richer company
+                trust signals over time.
+              </p>
 
-          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
-              <span>Live hiring workspace</span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Realtime
-              </span>
-            </div>
-            <div className="p-4 space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-slate-100">Senior Product Designer</span>
-                <span className="rounded-full bg-emerald-500/10 text-emerald-400 px-2 py-0.5 text-[10px] uppercase tracking-wide">
-                  12 applicants
-                </span>
-              </div>
-              <p className="text-slate-400 text-xs">Jobly, Remote · $140k - $180k · Equity</p>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-slate-300">
-                <div className="rounded-md bg-slate-900/60 border border-slate-800 px-2 py-1">
-                  <p className="text-slate-400">Pipeline</p>
-                  <p className="font-semibold">5 in review</p>
-                </div>
-                <div className="rounded-md bg-slate-900/60 border border-slate-800 px-2 py-1">
-                  <p className="text-slate-400">Time to hire</p>
-                  <p className="font-semibold">18 days</p>
-                </div>
-                <div className="rounded-md bg-slate-900/60 border border-slate-800 px-2 py-1">
-                  <p className="text-slate-400">Team</p>
-                  <p className="font-semibold">3 collaborators</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex -space-x-2">
-                  <span className="h-6 w-6 rounded-full bg-slate-700 border border-slate-900" />
-                  <span className="h-6 w-6 rounded-full bg-slate-600 border border-slate-900" />
-                  <span className="h-6 w-6 rounded-full bg-slate-500 border border-slate-900" />
-                </div>
-                <button className="px-3 py-1.5 rounded-md bg-emerald-500 text-emerald-950 text-xs font-medium hover:bg-emerald-400">
-                  Open hiring workspace
+              <form
+                action="/jobs"
+                method="get"
+                className="mt-8 grid gap-3 rounded-[1.6rem] border border-stone-200 bg-stone-950 p-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_auto]"
+              >
+                <label className="rounded-[1.2rem] bg-white px-4 py-3">
+                  <span className="block text-[11px] uppercase tracking-[0.18em] text-stone-500">
+                    Job title or keyword
+                  </span>
+                  <input
+                    name="q"
+                    placeholder="Product designer, frontend, recruiter..."
+                    className="mt-1 w-full border-0 bg-transparent p-0 text-sm text-stone-950 outline-none placeholder:text-stone-400"
+                  />
+                </label>
+                <label className="rounded-[1.2rem] bg-white px-4 py-3">
+                  <span className="block text-[11px] uppercase tracking-[0.18em] text-stone-500">
+                    Location
+                  </span>
+                  <input
+                    name="l"
+                    placeholder="London, New York, Remote"
+                    className="mt-1 w-full border-0 bg-transparent p-0 text-sm text-stone-950 outline-none placeholder:text-stone-400"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="rounded-[1.2rem] bg-amber-400 px-5 py-3 text-sm font-semibold text-stone-950 hover:bg-amber-300"
+                >
+                  Search jobs
                 </button>
+              </form>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
+                <MetricCard value="1,200+" label="roles to grow into" />
+                <MetricCard value="430+" label="hiring teams onboarding" />
+                <MetricCard value="Real-time" label="application state sync" />
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-[2rem] border border-stone-200 bg-stone-950 p-6 text-white shadow-[0_30px_80px_-40px_rgba(28,25,23,0.45)]">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">Live marketplace pulse</p>
+                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                    Syncing
+                  </span>
+                </div>
+                <div className="mt-6 space-y-4">
+                  <PulseRow
+                    title="Senior Product Designer"
+                    meta="Remote • $140k-$180k • New"
+                    badge="12 applicants"
+                  />
+                  <PulseRow
+                    title="Founding Frontend Engineer"
+                    meta="London • Hybrid • Equity"
+                    badge="8 applicants"
+                  />
+                  <PulseRow
+                    title="Talent Operations Lead"
+                    meta="New York • Full-time"
+                    badge="5 applicants"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-[0_24px_70px_-40px_rgba(28,25,23,0.35)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Why this direction matters
+                </p>
+                <div className="mt-4 space-y-4 text-sm text-stone-600">
+                  <div>
+                    <p className="font-semibold text-stone-900">Search-first candidate UX</p>
+                    <p className="mt-1">
+                      Faster filtering, richer job cards, and a clearer path from discovery to
+                      application.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-stone-900">Better employer operations</p>
+                    <p className="mt-1">
+                      Shared workspaces, live applicant status, and stronger hiring workflow depth.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-stone-900">Trust layers coming next</p>
+                    <p className="mt-1">
+                      Company pages, reviews, salary insights, and the marketplace signals people
+                      expect from an Indeed-like experience.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="px-8 pb-16 max-w-5xl mx-auto grid gap-8 md:grid-cols-3 text-sm text-slate-600 dark:text-slate-300">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-2">FOR CANDIDATES</p>
-            <p className="font-medium mb-1">Apply once, stay in sync</p>
-            <p>
-              Track every application in one place, with live status updates as hiring teams move you
-              through their pipeline.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-2">FOR TEAMS</p>
-            <p className="font-medium mb-1">Multi-member workspaces</p>
-            <p>
-              Invite recruiters, hiring managers, and coordinators into a shared view of every role,
-              applicant, and conversation.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 mb-2">FOR FINANCE</p>
-            <p className="font-medium mb-1">Org-level billing</p>
-            <p>
-              Centralize plans and invoices at the organization level with Clerk Billing, while you
-              focus on hiring outcomes.
-            </p>
+        <section className="px-5 pb-16 md:px-8 md:pb-20">
+          <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-3">
+            <FeaturePanel
+              eyebrow="For candidates"
+              title="Search like a real marketplace"
+              body="Use keyword, location, work-style, and salary filters to narrow results faster and browse roles with stronger context."
+              href="/jobs"
+              cta="Explore jobs"
+            />
+            <FeaturePanel
+              eyebrow="For employers"
+              title="Run hiring from one shared workspace"
+              body="Post roles, review applicants, and coordinate status updates in a single team-facing hiring surface."
+              href="/employer/dashboard"
+              cta="Open employer dashboard"
+            />
+            <FeaturePanel
+              eyebrow="Roadmap"
+              title="Trust, reviews, and salary insight"
+              body="The next phases deepen Jobly into a stronger Indeed-style product with company discovery and richer marketplace signals."
+              href="/jobs"
+              cta="Browse the marketplace"
+            />
           </div>
         </section>
       </main>
+    </div>
+  );
+}
 
-      <footer className="px-8 py-6 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-        <span>© {new Date().getFullYear()} Jobly. All rights reserved.</span>
-        <div className="flex gap-4">
-          <Link href="#" className="hover:text-primary">
-            Privacy
-          </Link>
-          <Link href="#" className="hover:text-primary">
-            Terms
-          </Link>
-          <Link href="#" className="hover:text-primary">
-            Contact
-          </Link>
+function MetricCard({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-[1.4rem] border border-stone-200 bg-white/80 px-4 py-4">
+      <p className="text-2xl font-semibold text-stone-950">{value}</p>
+      <p className="mt-1 text-sm text-stone-600">{label}</p>
+    </div>
+  );
+}
+
+function PulseRow({
+  title,
+  meta,
+  badge,
+}: {
+  title: string;
+  meta: string;
+  badge: string;
+}) {
+  return (
+    <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="mt-1 text-xs text-stone-300">{meta}</p>
         </div>
-      </footer>
+        <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
+          {badge}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function FeaturePanel({
+  eyebrow,
+  title,
+  body,
+  href,
+  cta,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+}) {
+  return (
+    <div className="rounded-[1.9rem] border border-stone-200 bg-white p-6 shadow-[0_24px_70px_-45px_rgba(28,25,23,0.3)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">{title}</h2>
+      <p className="mt-3 text-sm leading-6 text-stone-600">{body}</p>
+      <Link
+        href={href}
+        className="mt-6 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 hover:bg-stone-50"
+      >
+        {cta}
+      </Link>
     </div>
   );
 }
