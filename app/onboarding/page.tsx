@@ -8,43 +8,32 @@ import {
   SignInButton,
   useOrganization,
 } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
+import { useOrganizationBootstrap } from "@/components/useOrganizationBootstrap";
 
 type RoleChoice = "job_seeker" | "employer";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { organization } = useOrganization();
-  const bootstrapOrganizationAccess = useMutation(api.orgs.bootstrapOrganizationAccess);
-
+  const bootstrap = useOrganizationBootstrap(organization);
   const [choice, setChoice] = useState<RoleChoice | null>(null);
-  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    if (choice !== "employer" || !organization || syncing) {
+    if (choice !== "employer" || bootstrap.status !== "ready") {
       return;
     }
 
-    setSyncing(true);
-    void bootstrapOrganizationAccess({
-      clerkOrgId: organization.id,
-      name: organization.name,
-    })
-      .then(() => {
-        router.replace("/employer/dashboard");
-      })
-      .finally(() => {
-        setSyncing(false);
-      });
-  }, [bootstrapOrganizationAccess, choice, organization, router, syncing]);
+    router.replace("/employer/dashboard");
+  }, [bootstrap.status, choice, router]);
 
   return (
     <main className="min-h-screen bg-background text-foreground px-6 py-10 md:px-12">
       <div className="max-w-3xl mx-auto space-y-6">
         <header>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Set up your Jobly account</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+            Set up your Jobly account
+          </h1>
           <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
             Choose how you want to use Jobly today. You can always use both experiences later.
           </p>
@@ -94,9 +83,15 @@ export default function OnboardingPage() {
           {choice === "employer" && (
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-card p-5 space-y-3">
               {organization ? (
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  {syncing ? "Syncing your organization membership..." : "Redirecting to your dashboard..."}
-                </p>
+                bootstrap.status === "error" ? (
+                  <p className="text-sm text-amber-700">
+                    We couldn&apos;t initialize this workspace ({bootstrap.error}).
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Syncing your organization membership...
+                  </p>
+                )
               ) : (
                 <>
                   <p className="text-sm text-slate-600 dark:text-slate-300">

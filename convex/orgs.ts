@@ -269,9 +269,10 @@ export const getOrgDashboard = query({
       .collect();
 
     let totalApplicants = 0;
-    for await (const _application of ctx.db
+    for await (const application of ctx.db
       .query("applications")
       .withIndex("by_org", (q) => q.eq("organizationId", organization._id))) {
+      void application;
       totalApplicants += 1;
     }
 

@@ -18,6 +18,7 @@ export default function JobDetailPage() {
   const [coverLetter, setCoverLetter] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (job === undefined) {
     return (
@@ -38,6 +39,7 @@ export default function JobDetailPage() {
   const onSubmit = async () => {
     if (!user || submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await applyToJob({
         jobId,
@@ -45,6 +47,10 @@ export default function JobDetailPage() {
         coverLetter: coverLetter || undefined,
       });
       setSubmitted(true);
+    } catch (error: unknown) {
+      setSubmitError(
+        error instanceof Error ? error.message : "We couldn't submit your application.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -126,6 +132,9 @@ export default function JobDetailPage() {
                   >
                     {submitting ? "Submitting…" : "Submit application"}
                   </button>
+                  {submitError ? (
+                    <p className="text-xs text-rose-600 dark:text-rose-400">{submitError}</p>
+                  ) : null}
                 </div>
               )}
             </SignedIn>
