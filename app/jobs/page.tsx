@@ -5,6 +5,9 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useUser, SignInButton } from "@clerk/nextjs";
+import { useMutation } from "convex/react";
+import type { Id } from "@/convex/_generated/dataModel";
 
 type JobType =
   | "full_time"
@@ -32,6 +35,10 @@ const SALARY_OPTIONS = [
 export default function JobsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useUser();
+  const saveJob = useMutation(api.jobs.saveJob);
+  const unsaveJob = useMutation(api.jobs.unsaveJob);
+  const createJobAlert = useMutation(api.jobs.createJobAlert);
 
   const keyword = searchParams.get("q") ?? "";
   const location = searchParams.get("l") ?? "";
@@ -39,9 +46,14 @@ export default function JobsPage() {
   const remoteOnly = searchParams.get("remote") === "1";
   const minSalaryValue = searchParams.get("salary") ?? "";
   const sortBy = searchParams.get("sort") === "salary" ? "salary" : "newest";
+  const savedJobIds = useQuery(api.jobs.listSavedJobIds, user ? {} : "skip") ?? [];
+  const savedJobIdSet = new Set(savedJobIds);
 
   const [keywordInput, setKeywordInput] = useState(keyword);
   const [locationInput, setLocationInput] = useState(location);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
 
   const jobs =
     useQuery(api.jobs.listPublicJobs, {
@@ -113,6 +125,25 @@ export default function JobsPage() {
 
   const clearFilters = () => {
     router.push("/jobs");
+  };
+
+  const onCreateAlert = async () => {
+    setAlertError(null);
+    setAlertMessage(null);
+    try {
+      await createJobAlert({
+        keyword: keyword || undefined,
+        location: location || undefined,
+        types: selectedTypes.length > 0 ? selectedTypes : undefined,
+        remoteOnly: remoteOnly || undefined,
+        minSalary: minSalaryValue ? Number(minSalaryValue) : undefined,
+      });
+      setAlertMessage("Job alert created. You can manage alerts from your alerts page.");
+    } catch (error: unknown) {
+      setAlertError(
+        error instanceof Error ? error.message : "We couldn't create this alert.",
+      );
+    }
   };
 
   return (
@@ -260,7 +291,31 @@ export default function JobsPage() {
                   Search by title, keywords, tags, location, work style, and salary range.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href="/job-alerts"
+                  className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 hover:bg-stone-50"
+                >
+                  Your alerts
+                </Link>
+                {user ? (
+                  <button
+                    type="button"
+                    onClick={() => void onCreateAlert()}
+                    className="rounded-full bg-amber-400 px-3 py-2 text-sm font-medium text-stone-950 hover:bg-amber-300"
+                  >
+                    Create alert
+                  </button>
+                ) : (
+                  <SignInButton mode="modal">
+                    <button
+                      type="button"
+                      className="rounded-full bg-amber-400 px-3 py-2 text-sm font-medium text-stone-950 hover:bg-amber-300"
+                    >
+                      Create alert
+                    </button>
+                  </SignInButton>
+                )}
                 <span className="text-xs uppercase tracking-[0.16em] text-stone-500 font-semibold">
                   Sort
                 </span>
@@ -292,19 +347,20 @@ export default function JobsPage() {
                 </div>
               ) : (
                 jobs.map((job) => (
-                  <Link
+                  <article
                     key={job._id}
-                    href={`/jobs/${job._id}`}
-                    className="group block rounded-[1.75rem] border border-stone-200 bg-white p-5 shadow-[0_18px_50px_-34px_rgba(28,25,23,0.25)] transition-all hover:-translate-y-0.5 hover:border-stone-400 hover:shadow-[0_24px_60px_-34px_rgba(28,25,23,0.3)]"
+                    className="group rounded-[1.75rem] border border-stone-200 bg-white p-5 shadow-[0_18px_50px_-34px_rgba(28,25,23,0.25)] transition-all hover:-translate-y-0.5 hover:border-stone-400 hover:shadow-[0_24px_60px_-34px_rgba(28,25,23,0.3)]"
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div className="space-y-2">
                         <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500 font-semibold">
                           {job.organizationName}
                         </p>
-                        <h2 className="text-xl font-semibold text-stone-900 group-hover:text-amber-700">
-                          {job.title}
-                        </h2>
+                        <Link href={`/jobs/${job._id}`} className="block">
+                          <h2 className="text-xl font-semibold text-stone-900 group-hover:text-amber-700">
+                            {job.title}
+                          </h2>
+                        </Link>
                         <p className="text-sm text-stone-600">
                           {job.location} • {readableType(job.type)}
                         </p>
@@ -315,6 +371,26 @@ export default function JobsPage() {
                         ) : null}
                       </div>
                       <div className="flex flex-wrap gap-2 md:max-w-52 md:justify-end">
+                        <SaveButton
+                          userSignedIn={Boolean(user)}
+                          isSaved={savedJobIdSet.has(job._id as Id<"jobs">)}
+                          onSave={async () => {
+                            try {
+                              setSaveError(null);
+                              if (savedJobIdSet.has(job._id as Id<"jobs">)) {
+                                await unsaveJob({ jobId: job._id as Id<"jobs"> });
+                              } else {
+                                await saveJob({ jobId: job._id as Id<"jobs"> });
+                              }
+                            } catch (error: unknown) {
+                              setSaveError(
+                                error instanceof Error
+                                  ? error.message
+                                  : "We couldn't update your saved jobs.",
+                              );
+                            }
+                          }}
+                        />
                         <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-900">
                           New role
                         </span>
@@ -336,10 +412,19 @@ export default function JobsPage() {
                         ))}
                       </div>
                     ) : null}
-                  </Link>
+                  </article>
                 ))
               )}
             </div>
+            {saveError ? (
+              <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>
+            ) : null}
+            {alertMessage ? (
+              <p className="text-sm text-emerald-700">{alertMessage}</p>
+            ) : null}
+            {alertError ? (
+              <p className="text-sm text-rose-600 dark:text-rose-400">{alertError}</p>
+            ) : null}
           </div>
         </div>
       </section>
@@ -392,4 +477,41 @@ function timeAgo(createdAt: number) {
   }
   const diffInMonths = Math.floor(diffInDays / 30);
   return diffInMonths === 1 ? "1 month ago" : `${diffInMonths} months ago`;
+}
+
+function SaveButton({
+  userSignedIn,
+  isSaved,
+  onSave,
+}: {
+  userSignedIn: boolean;
+  isSaved: boolean;
+  onSave: () => void | Promise<void>;
+}) {
+  if (!userSignedIn) {
+    return (
+      <SignInButton mode="modal">
+        <button
+          type="button"
+          className="rounded-full border border-stone-300 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-700"
+        >
+          Save
+        </button>
+      </SignInButton>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onSave()}
+      className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+        isSaved
+          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+          : "border-stone-300 bg-white text-stone-700"
+      }`}
+    >
+      {isSaved ? "Saved" : "Save"}
+    </button>
+  );
 }
