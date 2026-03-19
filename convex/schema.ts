@@ -74,6 +74,21 @@ export default defineSchema({
       v.literal("offer"),
       v.literal("rejected"),
     ),
+    statusHistory: v.optional(
+      v.array(
+        v.object({
+          status: v.union(
+            v.literal("applied"),
+            v.literal("in_review"),
+            v.literal("interview"),
+            v.literal("offer"),
+            v.literal("rejected"),
+          ),
+          changedAt: v.number(),
+          changedBy: v.union(v.literal("seeker"), v.literal("employer"), v.literal("system")),
+        }),
+      ),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -90,7 +105,40 @@ export default defineSchema({
     location: v.string(),
     skills: v.array(v.string()),
     experience: v.optional(v.string()),
+    desiredTitle: v.optional(v.string()),
+    workPreference: v.optional(
+      v.union(
+        v.literal("onsite"),
+        v.literal("hybrid"),
+        v.literal("remote"),
+        v.literal("flexible"),
+      ),
+    ),
+    summary: v.optional(v.string()),
+    resumeUrl: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+    portfolioUrl: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_seeker", ["seekerUserId"]),
+
+  // Saved jobs for seekers
+  savedJobs: defineTable({
+    jobId: v.id("jobs"),
+    seekerUserId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_seeker", ["seekerUserId", "createdAt"])
+    .index("by_job_and_seeker", ["jobId", "seekerUserId"]),
+
+  // Saved search alerts for seekers
+  jobAlerts: defineTable({
+    seekerUserId: v.string(),
+    keyword: v.optional(v.string()),
+    location: v.optional(v.string()),
+    types: v.array(v.string()),
+    remoteOnly: v.boolean(),
+    minSalary: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_seeker", ["seekerUserId", "createdAt"]),
 });

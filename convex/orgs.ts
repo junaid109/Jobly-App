@@ -476,8 +476,27 @@ export const updateApplicationStatus = mutation({
       throw new Error("Application not found");
     }
 
+    const nextHistory =
+      application.status === args.status
+        ? application.statusHistory
+        : [
+            ...(application.statusHistory ?? [
+              {
+                status: application.status,
+                changedAt: application.createdAt,
+                changedBy: "system" as const,
+              },
+            ]),
+            {
+              status: args.status,
+              changedAt: Date.now(),
+              changedBy: "employer" as const,
+            },
+          ];
+
     await ctx.db.patch(application._id, {
       status: args.status,
+      statusHistory: nextHistory,
       updatedAt: Date.now(),
     });
 
